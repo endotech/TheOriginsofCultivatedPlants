@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>栽培植物ゲーム 円形ルーレット</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: "Segoe UI", "Yu Gothic", "Meiryo", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    header {
+      background: rgba(255, 255, 255, 0.95);
+      color: #667eea;
+      padding: 24px;
+      font-size: 2em;
+      font-weight: bold;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    .mode-switch {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .mode-switch button {
+      font-size: 1.1em;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #667eea;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      touch-action: manipulation;
+    }
+    .mode-switch button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .mode-switch button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transform: scale(1.05);
+    }
+    .main-area {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+      max-width: 1200px;
+    }
+    .wheel-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      border: 6px solid rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+      background: white;
+      touch-action: manipulation;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      min-width: 320px;
+    }
+    .spin-button {
+      font-size: 1.4em;
+      padding: 16px 40px;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 8px 25px rgba(245, 87, 108, 0.4);
+      transition: all 0.3s ease;
+      touch-action: manipulation;
+    }
+    .spin-button:hover:not(:disabled) {
+      transform: scale(1.1);
+      box-shadow: 0 12px 35px rgba(245, 87, 108, 0.6);
+    }
+    .spin-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .result {
+      font-size: 1.6em;
+      font-weight: bold;
+      color: #667eea;
+      text-align: center;
+      min-height: 2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: none;
+    }
+    .result.show {
+      animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    @keyframes popIn {
+      0% {
+        transform: scale(0);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.2);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    .desc {
+      font-size: 1.15em;
+      background: linear-gradient(135deg, #e0e7ff 0%, #fce7f3 100%);
+      padding: 20px;
+      border-radius: 15px;
+      min-height: 3em;
+      text-align: center;
+      line-height: 1.6;
+      color: #333;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.5em;
+        padding: 20px;
+      }
+      canvas {
+        width: 280px !important;
+        height: 280px !important;
+      }
+      .controls {
+        min-width: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>🌱 栽培植物ゲーム 🎡</header>
+
+<div class="mode-switch">
+  <button id="mutBtn" class="active">✨ 突然変異ルーレット</button>
+  <button id="disBtn">⚠️ 自然災害ルーレット</button>
+</div>
+
+<div class="main-area">
+  <div class="wheel-container">
+    <canvas id="wheel" width="400" height="400"></canvas>
+  </div>
+  <div class="controls">
+    <button class="spin-button" id="spinBtn">🎲 回す！</button>
+    <div class="result" id="result">結果：—</div>
+    <div class="desc" id="desc">ボタンを押してルーレットを回してください</div>
+  </div>
+</div>
+
+<script>
+  const mutBtn = document.getElementById('mutBtn');
+  const disBtn = document.getElementById('disBtn');
+  const spinBtn = document.getElementById('spinBtn');
+  const resultEl = document.getElementById('result');
+  const descEl = document.getElementById('desc');
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+
+  // 効果音を生成する関数
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  function playSpinSound() {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(200, audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.5);
+  }
+
+  function playStopSound() {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(100, audioContext.currentTime);
+    gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.2);
+  }
+
+  function playResultSound() {
+    [0, 0.1, 0.2].forEach((delay, i) => {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.frequency.setValueAtTime(523.25 + i * 130, audioContext.currentTime + delay);
+      gain.gain.setValueAtTime(0.2, audioContext.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.3);
+      osc.start(audioContext.currentTime + delay);
+      osc.stop(audioContext.currentTime + delay + 0.3);
+    });
+  }
+
+  const mutationOptions = [
+    { label: "種なし\n（バナナ）", desc: "🍌 バナナを持っている人は原種カードを裏返して突然変異状態にする", color: "#ffe066" },
+    { label: "脱粒性なし\n（コムギ）", desc: "🌾 コムギを持っている人は原種カードを裏返して突然変異状態にする", color: "#74c0fc" },
+    { label: "大粒化\n（トウモロコシ）", desc: "🌽 トウモロコシを持っている人は原種カードを裏返して突然変異状態にする", color: "#fab005" },
+    { label: "食べやすい\n（ジャガイモ）", desc: "🥔 ジャガイモを持っている人は原種カードを裏返して突然変異状態にする", color: "#51cf66" },
+    { label: "ハズレ", desc: "😢 今回は突然変異は起きませんでした", color: "#dee2e6" }
+  ];
+
+  const disasterOptions = [
+    { label: "パナマ病\n（バナナ）", desc: "💥 バナナの突然変異カードを1枚選んで破壊（表に戻す）", color: "#ff8787" },
+    { label: "赤さび病\n（コムギ）", desc: "💥 コムギの突然変異カードを1枚選んで破壊（表に戻す）", color: "#ff6b6b" },
+    { label: "アワノメイガ\n（トウモロコシ）", desc: "💥 トウモロコシの突然変異カードを1枚選んで破壊（表に戻す）", color: "#fa5252" },
+    { label: "ジャガイモ疫病\n（ジャガイモ）", desc: "💥 ジャガイモの突然変異カードを1枚選んで破壊（表に戻す）", color: "#e03131" },
+    { label: "ハズレ", desc: "😌 今回は自然災害は発生しませんでした", color: "#dee2e6" }
+  ];
+
+  let options = mutationOptions;
+  const segCount = 5;
+
+  function resetText() {
+    resultEl.textContent = "結果：—";
+    resultEl.classList.remove('show');
+    descEl.textContent = "ボタンを押してルーレットを回してください";
+  }
+
+  function drawWheel(rotation = 0) {
+    const W = canvas.width;
+    const H = canvas.height;
+    const cx = W / 2;
+    const cy = H / 2;
+    const r = W / 2 - 15;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const segAngle = (2 * Math.PI) / segCount;
+
+    for (let i = 0; i < segCount; i++) {
+      const opt = options[i];
+      const start = i * segAngle + rotation - Math.PI / 2;
+      const end = start + segAngle;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, end);
+      ctx.closePath();
+      
+      // グラデーション
+      const grad = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r);
+      grad.addColorStop(0, opt.color);
+      grad.addColorStop(1, shadeColor(opt.color, -20));
+      ctx.fillStyle = grad;
+      ctx.fill();
+      
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(start + segAngle / 2);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 16px sans-serif";
+      ctx.shadowColor = "rgba(255,255,255,0.8)";
+      ctx.shadowBlur = 3;
+      const lines = opt.label.split("\n");
+      const textRadius = r * 0.65;
+      const baseY = -((lines.length - 1) * 10);
+      lines.forEach((line, j) => {
+        ctx.fillText(line, textRadius, baseY + j * 20);
+      });
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // 中央の円
+    ctx.beginPath();
+    ctx.arc(cx, cy, 25, 0, 2 * Math.PI);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.strokeStyle = "#667eea";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // ポインタ（12時）
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r - 8);
+    ctx.lineTo(cx - 15, cy - r - 35);
+    ctx.lineTo(cx + 15, cy - r - 35);
+    ctx.closePath();
+    ctx.fillStyle = "#f5576c";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  function shadeColor(color, percent) {
+    const num = parseInt(color.replace("#",""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 +
+      (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255))
+      .toString(16).slice(1);
+  }
+
+  function spin() {
+    spinBtn.disabled = true;
+    playSpinSound();
+
+    const chosenIndex = Math.floor(Math.random() * segCount);
+    const segAngle = (2 * Math.PI) / segCount;
+    const targetRotation = - (chosenIndex * segAngle + segAngle / 2);
+    const startRotation = targetRotation + 2 * Math.PI * (3 + Math.random());
+
+    const duration = 1200;
+    const startTime = performance.now();
+
+    function animate(now) {
+      const t = Math.min(1, (now - startTime) / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const rot = startRotation + (targetRotation - startRotation) * ease;
+      drawWheel(rot);
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        playStopSound();
+        setTimeout(() => {
+          const choice = options[chosenIndex];
+          resultEl.textContent = "結果：" + choice.label.replace("\n", " ");
+          resultEl.classList.add('show');
+          descEl.textContent = choice.desc;
+          playResultSound();
+          spinBtn.disabled = false;
+        }, 200);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  mutBtn.onclick = () => {
+    options = mutationOptions;
+    mutBtn.classList.add("active");
+    disBtn.classList.remove("active");
+    drawWheel(0);
+    resetText();
+  };
+
+  disBtn.onclick = () => {
+    options = disasterOptions;
+    disBtn.classList.add("active");
+    mutBtn.classList.remove("active");
+    drawWheel(0);
+    resetText();
+  };
+
+  drawWheel(0);
+
+  spinBtn.addEventListener("click", () => {
+    audioContext.resume().then(() => spin());
+  });
+  
+  spinBtn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    audioContext.resume().then(() => spin());
+  }, { passive: false });
+</script>
+
+</body>
+</html>
